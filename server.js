@@ -5,10 +5,12 @@
 var express       = require('express'),
     app           = express(),
     bodyParser    = require('body-parser'),
+    jwt           = require('jsonwebtoken'),
     morgan        = require('morgan'),
     mongoose      = require('mongoose'),
-    User          = require('./models/user'),
-    port          = process.env.PORT || 8080;
+    port          = process.env.PORT || 8080,
+    secret        = "wearetilters",
+    User          = require('./models/user');
 
 // connect to our database (local one for now)
 mongoose.connect('localhost:27017/tilt_test');
@@ -39,6 +41,50 @@ app.get('/', function(req, res){
 
 // get an instance of the express router
 var apiRouter = express.Router();
+
+// AUTHENTICATING
+// -------------------------------------------
+apiRouter.post('/authentication', function(req, res){
+    //find the user
+    //select the username and password explicitly
+    User.findOne({
+        username: req.body.username
+    }).select('name username password').exec(function(err, user){
+        if (err){
+            throw err;
+        }
+        if (!user){
+            res.json({
+                success: false,
+                message: 'Authentication failed. User not found.'
+            });
+        } else if (user){
+            //check that the password matches
+            var validPassword - user.comparePassword(req.body.password);
+            if(!validPassword){
+                res.json({
+                    success : false,
+                    message: 'Authentication failed. Wrong password.'
+                });
+            } else {
+                //if user is found and password is right
+                //create a jwt token
+                var token = jwt.sign({
+                    name: user.name,
+                    username: user.username
+                }, superSecret, {
+                    expiresInMinutes: 1440 //expires in 24 hours
+                });
+
+                res.json({
+                    success: true,
+                    message: 'Enjoy your token!',
+                    token: token
+                });
+            }
+        }
+    });
+});
 
 // MIDDLE WARE
 // -----------------------
